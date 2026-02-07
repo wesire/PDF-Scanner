@@ -37,7 +37,7 @@ def create_test_pdf(path: Path, num_pages: int = 10) -> Path:
     """Create a test PDF with specified number of pages."""
     writer = PdfWriter()
     for i in range(num_pages):
-        page = writer.add_blank_page(width=200, height=200)
+        writer.add_blank_page(width=200, height=200)
     
     with open(path, "wb") as f:
         writer.write(f)

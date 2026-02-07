@@ -263,7 +263,7 @@ python -m pdf_context_narrator search "machine learning" --limit 5
 python -m pdf_context_narrator export json results.json
 ```
 
-### Example 2: Process and Search PDFs
+### Example 3: Summarize Multiple Documents
 
 ```bash
 # Process PDFs and generate summaries
@@ -272,7 +272,7 @@ python -m pdf_context_narrator summarize ./reports/report1.pdf --output summary1
 python -m pdf_context_narrator summarize ./reports/report2.pdf --output summary2.txt
 ```
 
-### Example 3: Summarize Multiple Documents
+### Example 4: Timeline Analysis
 
 ```bash
 # Ingest documents with date metadata
@@ -282,7 +282,7 @@ python -m pdf_context_narrator ingest ./historical-docs/ --recursive
 python -m pdf_context_narrator timeline --start 2023-01-01 --end 2023-12-31 --output timeline.json
 ```
 
-### Example 4: Timeline Analysis
+## Development
 
 ### Running Tests
 

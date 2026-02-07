@@ -124,7 +124,7 @@ def ingest(
 
         if not pdf_files:
             typer.echo(f"⚠️  No PDF files found in {path}")
-            return
+            raise typer.Exit(1)
 
         typer.echo(f"📚 Found {len(pdf_files)} PDF file(s)")
 
@@ -161,7 +161,7 @@ def ingest(
         typer.echo(f"   ⚠️  Interrupted: {interrupted_count}")
         typer.echo(f"   ❌ Errors: {error_count}")
     else:
-        typer.echo(f"❌ Error: Path not found: {path}", err=True)
+        typer.echo(f"❌ Error: {path} does not exist", err=True)
         raise typer.Exit(1)
 
 

@@ -8,6 +8,20 @@ from typing import List, Optional, Dict, Any
 import hashlib
 
 
+# Constants for document processing
+PARAGRAPH_SEPARATOR = "\n\n"
+PARAGRAPH_SEPARATOR_LENGTH = len(PARAGRAPH_SEPARATOR)
+CHARS_PER_PAGE = 2000  # Estimated characters per page
+SNIPPET_MAX_LENGTH = 150  # Maximum snippet length before truncation
+
+# BM25 scoring constants
+BM25_K1 = 1.5  # Term frequency saturation parameter
+BM25_B = 0.75  # Document length normalization parameter
+
+# Hybrid ranking constants
+KEYWORD_SCORE_NORMALIZATION = 5.0  # Divisor to normalize BM25 scores to 0-1 range
+
+
 @dataclass
 class SearchResult:
     """A single search result."""
@@ -75,7 +89,7 @@ def chunk_document(content: str, document_path: str, chunk_size: int = 500) -> L
     chunks = []
     
     # Split by paragraphs first
-    paragraphs = content.split('\n\n')
+    paragraphs = content.split(PARAGRAPH_SEPARATOR)
     
     current_chunk = ""
     current_pos = 0
@@ -89,31 +103,32 @@ def chunk_document(content: str, document_path: str, chunk_size: int = 500) -> L
         # If adding this paragraph exceeds chunk size, save current chunk
         if current_chunk and len(current_chunk) + len(para) > chunk_size:
             chunk_id = f"{Path(document_path).stem}_chunk_{chunk_idx}"
-            # Estimate page number (assuming ~2000 chars per page)
-            page = (current_pos // 2000) + 1
+            # Estimate page number based on character position
+            page = (current_pos // CHARS_PER_PAGE) + 1
             
+            chunk_len = len(current_chunk)
             chunks.append(Chunk(
                 chunk_id=chunk_id,
                 document=document_path,
                 page=page,
                 content=current_chunk.strip(),
                 start_pos=current_pos,
-                end_pos=current_pos + len(current_chunk)
+                end_pos=current_pos + chunk_len
             ))
             
             chunk_idx += 1
+            current_pos += chunk_len + PARAGRAPH_SEPARATOR_LENGTH
             current_chunk = para
-            current_pos += len(current_chunk) + 2  # +2 for \n\n
         else:
             if current_chunk:
-                current_chunk += "\n\n" + para
+                current_chunk += PARAGRAPH_SEPARATOR + para
             else:
                 current_chunk = para
     
     # Add the last chunk
     if current_chunk:
         chunk_id = f"{Path(document_path).stem}_chunk_{chunk_idx}"
-        page = (current_pos // 2000) + 1
+        page = (current_pos // CHARS_PER_PAGE) + 1
         chunks.append(Chunk(
             chunk_id=chunk_id,
             document=document_path,
@@ -138,10 +153,6 @@ def compute_bm25_score(query: str, chunk: Chunk, avg_doc_length: float = 500.0) 
     Returns:
         BM25 score
     """
-    # BM25 parameters
-    k1 = 1.5
-    b = 0.75
-    
     # Tokenize query and chunk
     query_terms = set(query.lower().split())
     chunk_text = chunk.content.lower()
@@ -157,8 +168,8 @@ def compute_bm25_score(query: str, chunk: Chunk, avg_doc_length: float = 500.0) 
             continue
         
         # BM25 formula (simplified without IDF since we don't have corpus stats)
-        numerator = tf * (k1 + 1)
-        denominator = tf + k1 * (1 - b + b * (doc_length / avg_doc_length))
+        numerator = tf * (BM25_K1 + 1)
+        denominator = tf + BM25_K1 * (1 - BM25_B + BM25_B * (doc_length / avg_doc_length))
         score += numerator / denominator
     
     return score
@@ -223,16 +234,17 @@ def hybrid_rank_chunks(
         keyword_score = compute_bm25_score(query, chunk, avg_length)
         vector_score = compute_mock_vector_score(query, chunk, seed)
         
-        # Normalize keyword score (rough normalization)
-        keyword_score_normalized = min(1.0, keyword_score / 5.0)
+        # Normalize keyword score to 0-1 range
+        # The divisor is based on empirical observation that BM25 scores typically range 0-5
+        keyword_score_normalized = min(1.0, keyword_score / KEYWORD_SCORE_NORMALIZATION)
         
         # Compute hybrid score
         hybrid_score = (keyword_weight * keyword_score_normalized + 
                        vector_weight * vector_score)
         
-        # Create snippet (first 150 chars of chunk)
-        snippet = chunk.content[:150]
-        if len(chunk.content) > 150:
+        # Create snippet (truncate to max length)
+        snippet = chunk.content[:SNIPPET_MAX_LENGTH]
+        if len(chunk.content) > SNIPPET_MAX_LENGTH:
             snippet += "..."
         
         results.append(SearchResult(

@@ -143,7 +143,9 @@ def test_hybrid_ranking():
     assert scores == sorted(scores, reverse=True)
     
     # First result should be the chunk with "machine learning"
-    assert "machine learning" in chunks[0].content.lower()
+    # Find the corresponding chunk for the top result
+    top_chunk = next(c for c in chunks if c.chunk_id == results[0].chunk_id)
+    assert "machine learning" in top_chunk.content.lower()
 
 
 def test_search_engine_initialization():
@@ -354,7 +356,8 @@ def test_chunk_snippet_truncation():
     results = hybrid_rank_chunks("test", [chunk], seed=42)
     
     assert len(results) == 1
-    assert len(results[0].snippet) <= 153  # 150 + "..."
+    # Snippet should be truncated to 150 chars + "..."
+    assert len(results[0].snippet) <= 153
     assert results[0].snippet.endswith("...")
 
 

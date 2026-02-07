@@ -1,0 +1,145 @@
+"""CLI interface for PDF Context Narrator using Typer."""
+
+import typer
+from typing import Optional
+from pathlib import Path
+
+from pdf_context_narrator.config import get_settings
+from pdf_context_narrator.logger import get_logger
+
+app = typer.Typer(
+    name="pdf-context-narrator",
+    help="A tool for ingesting, searching, and analyzing PDF documents.",
+    add_completion=False,
+)
+
+logger = get_logger(__name__)
+
+
+@app.command()
+def ingest(
+    path: Path = typer.Argument(..., help="Path to PDF file or directory to ingest"),
+    recursive: bool = typer.Option(False, "--recursive", "-r", help="Recursively ingest PDFs from subdirectories"),
+    force: bool = typer.Option(False, "--force", "-f", help="Force re-ingestion of already processed files"),
+) -> None:
+    """
+    Ingest PDF documents into the system.
+    
+    This command processes PDF files and stores their content for later retrieval.
+    """
+    settings = get_settings()
+    logger.info(f"Ingesting PDFs from: {path}")
+    logger.info(f"Recursive: {recursive}, Force: {force}")
+    logger.info(f"Using data directory: {settings.data_dir}")
+    
+    typer.echo(f"📥 Ingesting PDFs from: {path}")
+    typer.echo("✅ Ingestion complete (stub implementation)")
+
+
+@app.command()
+def search(
+    query: str = typer.Argument(..., help="Search query"),
+    limit: int = typer.Option(10, "--limit", "-l", help="Maximum number of results to return"),
+    format: str = typer.Option("text", "--format", "-f", help="Output format (text, json)"),
+) -> None:
+    """
+    Search through ingested PDF documents.
+    
+    This command searches the indexed content and returns relevant results.
+    """
+    settings = get_settings()
+    logger.info(f"Searching for: {query}")
+    logger.info(f"Limit: {limit}, Format: {format}")
+    
+    typer.echo(f"🔍 Searching for: {query}")
+    typer.echo(f"📊 Showing top {limit} results")
+    typer.echo("✅ Search complete (stub implementation)")
+
+
+@app.command()
+def summarize(
+    document: Path = typer.Argument(..., help="Path to document or document ID"),
+    length: str = typer.Option("medium", "--length", "-l", help="Summary length (short, medium, long)"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path"),
+) -> None:
+    """
+    Generate a summary of a PDF document.
+    
+    This command creates a concise summary of the document's content.
+    """
+    settings = get_settings()
+    logger.info(f"Summarizing document: {document}")
+    logger.info(f"Summary length: {length}")
+    
+    typer.echo(f"📄 Summarizing document: {document}")
+    typer.echo(f"📝 Summary length: {length}")
+    if output:
+        typer.echo(f"💾 Saving to: {output}")
+    typer.echo("✅ Summary complete (stub implementation)")
+
+
+@app.command()
+def timeline(
+    start_date: Optional[str] = typer.Option(None, "--start", "-s", help="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = typer.Option(None, "--end", "-e", help="End date (YYYY-MM-DD)"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path"),
+) -> None:
+    """
+    Generate a timeline view of document events.
+    
+    This command creates a chronological view of document-related events.
+    """
+    settings = get_settings()
+    logger.info("Generating timeline")
+    logger.info(f"Date range: {start_date} to {end_date}")
+    
+    typer.echo("📅 Generating timeline")
+    if start_date:
+        typer.echo(f"  Start: {start_date}")
+    if end_date:
+        typer.echo(f"  End: {end_date}")
+    if output:
+        typer.echo(f"💾 Saving to: {output}")
+    typer.echo("✅ Timeline generation complete (stub implementation)")
+
+
+@app.command()
+def export(
+    format: str = typer.Argument(..., help="Export format (json, csv, markdown)"),
+    output: Path = typer.Argument(..., help="Output file path"),
+    filter: Optional[str] = typer.Option(None, "--filter", help="Filter expression for documents to export"),
+) -> None:
+    """
+    Export data in various formats.
+    
+    This command exports the indexed data to different file formats.
+    """
+    settings = get_settings()
+    logger.info(f"Exporting data to {format} format")
+    logger.info(f"Output path: {output}")
+    
+    typer.echo(f"📤 Exporting data to {format} format")
+    typer.echo(f"💾 Output: {output}")
+    if filter:
+        typer.echo(f"🔍 Filter: {filter}")
+    typer.echo("✅ Export complete (stub implementation)")
+
+
+@app.callback()
+def main(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to configuration file"),
+) -> None:
+    """
+    PDF Context Narrator - A tool for ingesting, searching, and analyzing PDF documents.
+    """
+    if verbose:
+        logger.setLevel("DEBUG")
+        logger.debug("Verbose mode enabled")
+    
+    if config:
+        logger.info(f"Using config file: {config}")
+
+
+if __name__ == "__main__":
+    app()

@@ -1,26 +1,15 @@
-# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
-build/
-develop-eggs/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
+build/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -139,9 +128,12 @@ cython_debug/
 data/
 cache/
 logs/
+checkpoints/
 *.db
 *.sqlite
 *.sqlite3
+test_*.pdf
+*.pdf
 
 # IDE
 .vscode/
@@ -150,8 +142,5 @@ logs/
 *.swo
 *~
 .DS_Store
-
-# Temporary files
-*.tmp
-*.bak
-*.temp
+data/extracted/*.jsonl
+test_sample.pdf

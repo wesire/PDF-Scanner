@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     # Processing settings
     max_workers: int = 4
     batch_size: int = 10
+    memory_limit_mb: Optional[int] = None
+    checkpoint_dir: Path = Path("checkpoints")
     
     # OCR settings
     ocr_low_text_threshold: float = 50.0  # Minimum chars per page for "normal" text
@@ -54,6 +56,7 @@ class Settings(BaseSettings):
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
 
 @lru_cache()

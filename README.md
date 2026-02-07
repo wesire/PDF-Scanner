@@ -1,5 +1,16 @@
 # PDF Context Narrator
 
+A Python 3.11 CLI tool for ingesting, searching, and analyzing PDF documents with large-file resilience.
+
+## Features
+
+- 📥 **Ingest**: Process and index PDF documents with resilience features
+  - **Streaming page processing** for memory efficiency
+  - **Automatic checkpoints** every N pages (configurable)
+  - **Resumable runs** to continue from interruption
+  - **Multiprocessing support** for faster processing
+  - **Progress bars** for visual feedback
+  - **Memory limit monitoring** (optional, requires psutil)
 A Python 3.11 CLI tool for ingesting, searching, and analyzing PDF documents with semantic search capabilities.
 
 ## Features
@@ -18,6 +29,17 @@ A Python 3.11 CLI tool for ingesting, searching, and analyzing PDF documents wit
 - 📅 **Timeline**: Create chronological views of document events
 - 📤 **Export**: Export data in multiple formats (JSON, CSV, Markdown)
 - 🔎 **OCR**: Optical Character Recognition for scanned pages and images
+
+## Large-File Resilience
+
+The PDF processor is designed to handle large files (1000+ pages) without crashing:
+
+- **Streaming Processing**: Pages are processed one at a time, not loading the entire PDF into memory
+- **Checkpoints**: State is saved every N pages (configurable via `--batch-size`)
+- **Resume Capability**: If processing is interrupted, use `--resume` to continue from the last checkpoint
+- **Multiprocessing**: Use `--workers` to process pages in parallel (where applicable)
+- **Progress Tracking**: Visual progress bars show processing status
+- **Memory Monitoring**: Optional memory limit to prevent out-of-memory errors
 
 ## Project Structure
 
@@ -174,6 +196,9 @@ Key configuration options:
 - `PDF_CN_LOGS_DIR`: Directory for log files (default: `logs`)
 - `PDF_CN_LOG_LEVEL`: Logging level (default: `INFO`)
 - `PDF_CN_MAX_WORKERS`: Number of parallel workers (default: `4`)
+- `PDF_CN_BATCH_SIZE`: Number of pages between checkpoints (default: `10`)
+- `PDF_CN_CHECKPOINT_DIR`: Directory for checkpoint files (default: `checkpoints`)
+- `PDF_CN_MEMORY_LIMIT_MB`: Optional memory limit in MB (requires psutil)
 - `PDF_CN_OCR_LOW_TEXT_THRESHOLD`: Minimum characters per page to skip OCR (default: `50.0`)
 - `PDF_CN_OCR_MAX_RETRIES`: Maximum OCR retry attempts (default: `3`)
 - `PDF_CN_OCR_RETRY_DELAY`: Delay between OCR retries in seconds (default: `1.0`)
@@ -200,6 +225,7 @@ python src/pdf_context_narrator/cli.py [COMMAND] [OPTIONS]
 
 #### 1. Ingest PDFs
 
+Process and index PDF documents with large-file resilience:
 Process and index PDF documents with OCR support:
 
 ```bash
@@ -215,6 +241,20 @@ python -m pdf_context_narrator ingest path/to/pdfs/ --recursive
 # Force re-ingestion of already processed files
 python -m pdf_context_narrator ingest path/to/pdfs/ --force
 
+# Use multiple workers for parallel processing
+python -m pdf_context_narrator ingest path/to/pdfs/ --workers 8
+
+# Set checkpoint frequency (pages between checkpoints)
+python -m pdf_context_narrator ingest path/to/pdfs/ --batch-size 50
+
+# Resume from checkpoint after interruption
+python -m pdf_context_narrator ingest path/to/pdfs/ --resume
+
+# Set memory limit (requires psutil)
+python -m pdf_context_narrator ingest path/to/pdfs/ --memory-limit 1024
+
+# Custom checkpoint directory
+python -m pdf_context_narrator ingest path/to/pdfs/ --checkpoint-dir ./my_checkpoints
 # OCR Options
 # --ocr-mode off: No OCR processing (default for text PDFs)
 python -m pdf_context_narrator ingest path/to/document.pdf --ocr-mode off
@@ -225,6 +265,15 @@ python -m pdf_context_narrator ingest path/to/scanned.pdf --ocr-mode auto
 # --ocr-mode force: Force OCR on all pages
 python -m pdf_context_narrator ingest path/to/scanned.pdf --ocr-mode force
 ```
+
+**Large File Processing:**
+
+When processing large PDFs (1000+ pages):
+1. Processing is done via streaming, one page at a time
+2. Checkpoints are automatically saved every N pages (default: 10)
+3. If interrupted (Ctrl+C), the checkpoint is saved
+4. Use `--resume` to continue from the last checkpoint
+5. Progress bars show real-time processing status
 
 #### 2. Search Documents
 
@@ -349,7 +398,20 @@ python -m pdf_context_narrator [COMMAND] --help
 
 Here are some complete workflow examples:
 
-### Example 1: Process and Search PDFs
+### Example 1: Process Large PDF with Resilience
+
+```bash
+# Process a large PDF with checkpoints every 100 pages
+python -m pdf_context_narrator ingest large_document.pdf --batch-size 100
+
+# If interrupted (Ctrl+C), resume from checkpoint
+python -m pdf_context_narrator ingest large_document.pdf --resume --batch-size 100
+
+# Use multiple workers for faster processing
+python -m pdf_context_narrator ingest large_document.pdf --workers 8 --batch-size 100
+```
+
+### Example 2: Process and Search PDFs
 
 ```bash
 # 1. Ingest PDFs from a directory
@@ -362,7 +424,7 @@ python -m pdf_context_narrator search "machine learning" --limit 5
 python -m pdf_context_narrator export json results.json
 ```
 
-### Example 2: Summarize Multiple Documents
+### Example 3: Summarize Multiple Documents
 
 ```bash
 # Process PDFs and generate summaries
@@ -467,8 +529,24 @@ ruff check src/
 mypy src/
 ```
 
+## Development
+
 ## Current Status
 
+✅ **PDF Ingestion**: Full implementation with large-file resilience
+  - Streaming page processing
+  - Automatic checkpoints and resume capability
+  - Multiprocessing support
+  - Progress bars and memory monitoring
+
+⚠️ **Other Commands**: Stub implementations - business logic to be implemented in future releases.
+
+## Roadmap
+
+- [x] Implement PDF text extraction with streaming
+- [x] Add checkpoint/resume capability for large files
+- [x] Add progress bars and status feedback
+- [x] Implement multiprocessing support
 ✅ **Implemented Features**:
 - Semantic text chunking with configurable size and overlap
 - Embeddings abstraction with Sentence Transformers support

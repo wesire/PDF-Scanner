@@ -19,6 +19,21 @@ except ImportError:
 runner = CliRunner()
 
 
+def test_ingest_command(tmp_path):
+    """Test the ingest command."""
+    from pypdf import PdfWriter
+    
+    # Create a test PDF
+    test_pdf = tmp_path / "test.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    with open(test_pdf, "wb") as f:
+        writer.write(f)
+    
+    result = runner.invoke(app, ["ingest", str(test_pdf)])
+    assert result.exit_code == 0
+    assert "Ingesting PDFs" in result.stdout
+    assert "Successfully processed" in result.stdout
 @pytest.fixture
 def temp_dir():
     """Create a temporary directory for test files."""

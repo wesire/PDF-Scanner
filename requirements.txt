@@ -6,6 +6,9 @@ pydantic==2.5.3
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
 
+# PDF processing
+pypdf==4.0.1
+tqdm==4.66.1
 # Embeddings and vector search
 sentence-transformers>=2.2.2
 faiss-cpu>=1.8.0

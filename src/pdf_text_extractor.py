@@ -2,6 +2,7 @@
 PDF Text Extractor with pypdf primary and pdfplumber fallback.
 
 This module extracts text from PDF files with per-page metadata and graceful error handling.
+Note: The core extraction logic has been refactored into extract.py and normalize.py modules.
 """
 import json
 import logging
@@ -17,6 +18,15 @@ try:
     import pdfplumber
 except ImportError:
     pdfplumber = None
+
+# Import refactored extraction functions
+try:
+    from extract import extract_text
+    from normalize import normalize_text
+    _USE_REFACTORED = True
+except ImportError:
+    # Fallback to legacy implementation if refactored modules not available
+    _USE_REFACTORED = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -100,13 +110,14 @@ class PDFTextExtractor:
             logger.warning(f"pdfplumber extraction failed for {pdf_path} page {page_num}: {e}")
             return None
 
-    def extract_page(self, pdf_path: Union[str, Path], page_num: int) -> Optional[Dict]:
+    def extract_page(self, pdf_path: Union[str, Path], page_num: int, normalize: bool = False) -> Optional[Dict]:
         """
         Extract text from a single PDF page with metadata.
 
         Args:
             pdf_path: Path to the PDF file
             page_num: Page number (0-indexed)
+            normalize: Whether to normalize the extracted text (fixes OCR errors)
 
         Returns:
             Dictionary with file, page, chars, extraction_method, and text
@@ -126,6 +137,10 @@ class PDFTextExtractor:
         if text is None:
             logger.error(f"Both extraction methods failed for {pdf_path} page {page_num}")
             return None
+        
+        # Optionally normalize text using the refactored normalize module
+        if normalize and _USE_REFACTORED:
+            text = normalize_text(text)
         
         return {
             "file": str(pdf_path.absolute()),

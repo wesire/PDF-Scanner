@@ -1,6 +1,7 @@
 """Tests for CLI commands."""
 
 import pytest
+from pathlib import Path
 from typer.testing import CliRunner
 
 from pdf_context_narrator.cli import app
@@ -16,10 +17,37 @@ def test_ingest_command():
 
 
 def test_search_command():
-    """Test the search command."""
+    """Test the search command with no indexed documents."""
     result = runner.invoke(app, ["search", "test query"])
     assert result.exit_code == 0
+    # When no documents are found, it should show a warning
+    assert "Indexing documents" in result.stdout or "No documents found" in result.stdout
+
+
+def test_search_command_with_fixtures():
+    """Test the search command with test fixtures."""
+    fixtures_dir = Path(__file__).parent / "fixtures"
+    
+    result = runner.invoke(app, ["search", "machine learning", "--data-dir", str(fixtures_dir)])
+    assert result.exit_code == 0
     assert "Searching for" in result.stdout
+
+
+def test_search_command_json_format():
+    """Test search command with JSON format."""
+    fixtures_dir = Path(__file__).parent / "fixtures"
+    
+    result = runner.invoke(app, ["search", "machine learning", "--data-dir", str(fixtures_dir), "--format", "json"])
+    assert result.exit_code == 0
+
+
+def test_search_command_markdown_format():
+    """Test search command with Markdown format."""
+    fixtures_dir = Path(__file__).parent / "fixtures"
+    
+    result = runner.invoke(app, ["search", "machine learning", "--data-dir", str(fixtures_dir), "--format", "markdown"])
+    assert result.exit_code == 0
+    assert "Search Results" in result.stdout
 
 
 def test_summarize_command():

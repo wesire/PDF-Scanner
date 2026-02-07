@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from typing import List, Optional
-import re
 
 
 @dataclass
@@ -152,11 +151,11 @@ class SemanticChunker:
         Returns:
             Adjusted end position
         """
-        # Look for paragraph breaks
+        # Look for paragraph breaks (search backwards from end)
         search_text = text[start:end]
-        para_match = re.search(r'\n\s*\n', search_text[::-1])
-        if para_match:
-            return end - para_match.start()
+        para_idx = search_text.rfind('\n\n')
+        if para_idx != -1 and para_idx > len(search_text) - 100:
+            return start + para_idx + 2
         
         # Look for sentence breaks near the end
         sentence_breaks = ['. ', '? ', '! ', '.\n', '?\n', '!\n']

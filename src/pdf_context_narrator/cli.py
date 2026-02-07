@@ -253,7 +253,10 @@ def index_info(
     
     try:
         # Load and display index stats
-        embeddings = get_embeddings_provider()
+        embeddings = get_embeddings_provider(
+            provider="sentence-transformer",
+            model_name="all-MiniLM-L6-v2",
+        )
         index_manager = FAISSIndexManager(
             embeddings_provider=embeddings,
             index_path=index_path,

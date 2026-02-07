@@ -135,7 +135,15 @@ def test_chunk_overlap(chunker, sample_text, source_ref):
 
 def test_chunk_metadata_integrity(chunker, source_ref):
     """Test that source references and metadata are preserved."""
-    text = "A" * 1500  # Text long enough to create multiple chunks
+    # Use varied text with paragraphs and sentences to test boundary detection
+    text = """This is the first paragraph with multiple sentences. It has enough content to create a chunk. 
+The sentences vary in length to test chunking behavior. This paragraph continues with more text.
+
+This is the second paragraph that should be in a different chunk. It also has varied sentence structures.
+Some sentences are short. Others are longer and contain more detailed information about the topic.
+
+The third paragraph provides additional content. """ * 3  # Repeat to ensure multiple chunks
+    
     metadata = {"author": "Test Author", "date": "2024-01-01"}
     
     chunks = chunker.chunk_text(text, source_ref, metadata=metadata)
@@ -193,7 +201,13 @@ def test_custom_chunk_sizes():
     chunker = SemanticChunker(min_chunk_size=100, max_chunk_size=200, overlap_size=20)
     source = SourceReference(file="test.pdf")
     
-    text = "A" * 500  # Long uniform text
+    # Use varied text with sentences and paragraphs
+    text = """This is the first sentence of the test. The second sentence adds more content. 
+    A third sentence continues the narrative. The fourth sentence provides additional details.
+    
+    This is a new paragraph with different information. It contains multiple sentences as well.
+    Each sentence adds to the overall content. The text flows naturally with varied structure.""" * 3
+    
     chunks = chunker.chunk_text(text, source)
     
     assert len(chunks) > 0

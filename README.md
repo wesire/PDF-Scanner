@@ -4,11 +4,12 @@ A Python 3.11 CLI tool for ingesting, searching, and analyzing PDF documents.
 
 ## Features
 
-- 📥 **Ingest**: Process and index PDF documents
+- 📥 **Ingest**: Process and index PDF documents with OCR support
 - 🔍 **Search**: Query indexed documents with powerful search
 - 📄 **Summarize**: Generate summaries of PDF content
 - 📅 **Timeline**: Create chronological views of document events
 - 📤 **Export**: Export data in multiple formats (JSON, CSV, Markdown)
+- 🔎 **OCR**: Optical Character Recognition for scanned pages and images
 
 ## Project Structure
 
@@ -20,7 +21,8 @@ pdf_context_narrator/
 │       ├── __main__.py
 │       ├── cli.py          # CLI interface with Typer
 │       ├── config.py       # Configuration management with Pydantic
-│       └── logger.py       # Logging setup
+│       ├── logger.py       # Logging setup
+│       └── ocr.py          # OCR processing for scanned documents
 ├── tests/                   # Test files
 ├── configs/                 # Configuration files
 ├── docs/                    # Documentation
@@ -33,6 +35,10 @@ pdf_context_narrator/
 
 - Python 3.11 or higher
 - pip (Python package manager)
+- Tesseract OCR (for OCR functionality)
+  - Ubuntu/Debian: `sudo apt-get install tesseract-ocr poppler-utils`
+  - macOS: `brew install tesseract poppler`
+  - Windows: Download from [GitHub releases](https://github.com/UB-Mannheim/tesseract/wiki)
 
 ## Installation
 
@@ -157,6 +163,9 @@ Key configuration options:
 - `PDF_CN_LOGS_DIR`: Directory for log files (default: `logs`)
 - `PDF_CN_LOG_LEVEL`: Logging level (default: `INFO`)
 - `PDF_CN_MAX_WORKERS`: Number of parallel workers (default: `4`)
+- `PDF_CN_OCR_LOW_TEXT_THRESHOLD`: Minimum characters per page to skip OCR (default: `50.0`)
+- `PDF_CN_OCR_MAX_RETRIES`: Maximum OCR retry attempts (default: `3`)
+- `PDF_CN_OCR_RETRY_DELAY`: Delay between OCR retries in seconds (default: `1.0`)
 
 See `.env.example` for all available options.
 
@@ -180,7 +189,7 @@ python src/pdf_context_narrator/cli.py [COMMAND] [OPTIONS]
 
 #### 1. Ingest PDFs
 
-Process and index PDF documents:
+Process and index PDF documents with OCR support:
 
 ```bash
 # Ingest a single PDF file
@@ -194,6 +203,16 @@ python -m pdf_context_narrator ingest path/to/pdfs/ --recursive
 
 # Force re-ingestion of already processed files
 python -m pdf_context_narrator ingest path/to/pdfs/ --force
+
+# OCR Options
+# --ocr-mode off: No OCR processing (default for text PDFs)
+python -m pdf_context_narrator ingest path/to/document.pdf --ocr-mode off
+
+# --ocr-mode auto: Automatically OCR pages with low text content (recommended)
+python -m pdf_context_narrator ingest path/to/scanned.pdf --ocr-mode auto
+
+# --ocr-mode force: Force OCR on all pages
+python -m pdf_context_narrator ingest path/to/scanned.pdf --ocr-mode force
 ```
 
 #### 2. Search Documents
@@ -303,7 +322,20 @@ python -m pdf_context_narrator summarize ./reports/report1.pdf --output summary1
 python -m pdf_context_narrator summarize ./reports/report2.pdf --output summary2.txt
 ```
 
-### Example 3: Timeline Analysis
+### Example 3: OCR Processing for Scanned Documents
+
+```bash
+# Process scanned documents with automatic OCR
+python -m pdf_context_narrator ingest ./scanned-docs/ --recursive --ocr-mode auto
+
+# Force OCR on all pages (even if text is present)
+python -m pdf_context_narrator ingest ./mixed-docs/ --ocr-mode force
+
+# Process with OCR disabled
+python -m pdf_context_narrator ingest ./text-only-docs/ --ocr-mode off
+```
+
+### Example 4: Timeline Analysis
 
 ```bash
 # Ingest documents with date metadata
@@ -343,11 +375,14 @@ mypy src/
 
 ## Current Status
 
-⚠️ **Note**: This is currently a scaffolding implementation. All commands are stubs and do not perform actual PDF processing. Business logic will be implemented in future releases.
+✅ **OCR Support**: The ingest command now supports OCR for scanned pages and images, with automatic detection of low-text pages.
+
+⚠️ **Note**: Search, summarize, timeline, and export commands are currently stubs. Full business logic for these commands will be implemented in future releases.
 
 ## Roadmap
 
-- [ ] Implement PDF text extraction
+- [x] Implement PDF text extraction
+- [x] Add OCR support for scanned documents
 - [ ] Add vector database for semantic search
 - [ ] Implement summarization using LLMs
 - [ ] Add support for document metadata extraction

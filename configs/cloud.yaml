@@ -1,0 +1,34 @@
+# Cloud Production Profile
+# Optimized for cloud deployment with structured logging and cloud storage
+
+# Application settings
+app_name: pdf-context-narrator
+app_version: 0.1.0
+debug: false
+environment: cloud
+
+# Data directories (can be overridden by environment variables)
+data_dir: /app/data
+cache_dir: /app/cache
+logs_dir: /app/logs
+
+# Logging settings (structured JSON for log aggregation)
+log_level: INFO
+log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+log_file: null  # Use stdout for cloud logging
+structured_logging: true
+
+# Database settings (use environment variable for cloud database)
+database_url: null  # Set via PDF_CN_DATABASE_URL env var
+
+# API settings (use environment variables for secrets)
+api_endpoint: null  # Set via PDF_CN_API_ENDPOINT env var
+api_key: null  # Set via PDF_CN_API_KEY env var
+
+# Processing settings (higher parallelism for cloud)
+max_workers: 8
+batch_size: 20
+
+# Cloud storage settings
+cloud_storage_bucket: null  # Set via PDF_CN_CLOUD_STORAGE_BUCKET env var
+cloud_storage_prefix: pdf-context-narrator

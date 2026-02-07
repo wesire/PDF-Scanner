@@ -129,16 +129,37 @@ def export(
 def main(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to configuration file"),
+    profile: Optional[str] = typer.Option(None, "--profile", "-p", help="Configuration profile (local, offline, cloud)"),
+    structured_logs: bool = typer.Option(False, "--structured-logs", help="Enable structured JSON logging"),
 ) -> None:
     """
     PDF Context Narrator - A tool for ingesting, searching, and analyzing PDF documents.
     """
-    if verbose:
-        logger.setLevel("DEBUG")
-        logger.debug("Verbose mode enabled")
+    from pdf_context_narrator.config import get_settings, clear_settings_cache
+    from pdf_context_narrator.logger import setup_logging
     
+    # Clear any cached settings to allow reloading with new config
+    clear_settings_cache()
+    
+    # Load settings based on config or profile
     if config:
+        settings = get_settings(config_path=config)
         logger.info(f"Using config file: {config}")
+    elif profile:
+        settings = get_settings(profile=profile)
+        logger.info(f"Using profile: {profile}")
+    else:
+        settings = get_settings()
+    
+    # Setup logging with structured logging if requested
+    log_level = "DEBUG" if verbose else settings.log_level
+    use_structured = structured_logs or settings.structured_logging
+    setup_logging(level=log_level, structured=use_structured)
+    
+    if verbose:
+        logger.debug("Verbose mode enabled")
+    if use_structured:
+        logger.debug("Structured logging enabled")
 
 
 if __name__ == "__main__":

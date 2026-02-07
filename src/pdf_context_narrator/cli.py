@@ -186,12 +186,9 @@ def search(
     """
     Search through ingested PDF documents.
 
-    This command searches the indexed content and returns relevant results.
-
     This command searches the indexed content and returns relevant results
     using hybrid keyword + vector ranking.
     """
-    get_settings()
     settings = get_settings()
     logger.info(f"Searching for: {query}")
     logger.info(f"Limit: {limit}, Format: {format}")

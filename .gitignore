@@ -139,9 +139,12 @@ cython_debug/
 data/
 cache/
 logs/
+checkpoints/
 *.db
 *.sqlite
 *.sqlite3
+test_*.pdf
+*.pdf
 
 # IDE
 .vscode/

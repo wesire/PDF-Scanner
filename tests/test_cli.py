@@ -8,11 +8,21 @@ from pdf_context_narrator.cli import app
 runner = CliRunner()
 
 
-def test_ingest_command():
+def test_ingest_command(tmp_path):
     """Test the ingest command."""
-    result = runner.invoke(app, ["ingest", "test.pdf"])
+    from pypdf import PdfWriter
+    
+    # Create a test PDF
+    test_pdf = tmp_path / "test.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    with open(test_pdf, "wb") as f:
+        writer.write(f)
+    
+    result = runner.invoke(app, ["ingest", str(test_pdf)])
     assert result.exit_code == 0
     assert "Ingesting PDFs" in result.stdout
+    assert "Successfully processed" in result.stdout
 
 
 def test_search_command():

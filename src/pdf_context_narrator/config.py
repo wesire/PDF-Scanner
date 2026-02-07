@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     memory_limit_mb: Optional[int] = None
     checkpoint_dir: Path = Path("checkpoints")
     
+    # OCR settings
+    ocr_low_text_threshold: float = 50.0  # Minimum chars per page for "normal" text
+    ocr_max_retries: int = 3
+    ocr_retry_delay: float = 1.0
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

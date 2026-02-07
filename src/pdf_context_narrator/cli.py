@@ -1,12 +1,18 @@
 """CLI interface for PDF Context Narrator using Typer."""
 
 import typer
+import json
 from typing import Optional
 from pathlib import Path
 
 from pdf_context_narrator.config import get_settings
 from pdf_context_narrator.logger import get_logger
 from pdf_context_narrator.processor import process_pdf_file
+from pdf_context_narrator.search import SearchEngine
+from pdf_context_narrator.chunking import SemanticChunker, SourceReference
+from pdf_context_narrator.embeddings import get_embeddings_provider
+from pdf_context_narrator.index import FAISSIndexManager
+from pdf_context_narrator.ocr import OCRMode, PDFOCRProcessor
 
 app = typer.Typer(
     name="pdf-context-narrator",
@@ -27,6 +33,7 @@ def ingest(
     memory_limit: Optional[int] = typer.Option(None, "--memory-limit", "-m", help="Memory limit in MB (requires psutil)"),
     resume: bool = typer.Option(False, "--resume", help="Resume from checkpoint if available"),
     checkpoint_dir: Optional[Path] = typer.Option(None, "--checkpoint-dir", help="Directory for checkpoint files"),
+    ocr_mode: OCRMode = typer.Option(OCRMode.AUTO, "--ocr-mode", help="OCR processing mode: off (no OCR), auto (OCR low-text pages), force (OCR all pages)"),
 ) -> None:
     """
     Ingest PDF documents into the system with large-file resilience.
@@ -41,6 +48,8 @@ def ingest(
     - Multiprocessing support with --workers flag
     - Progress bars for visual feedback
     - Memory limit monitoring with --memory-limit flag
+    This command processes PDF files and stores their content for later retrieval.
+    Supports OCR for scanned documents and images.
     """
     settings = get_settings()
     
@@ -139,26 +148,139 @@ def ingest(
     else:
         typer.echo(f"❌ Error: Path not found: {path}", err=True)
         raise typer.Exit(1)
+    logger.info(f"Recursive: {recursive}, Force: {force}, OCR mode: {ocr_mode}")
+    logger.info(f"Using data directory: {settings.data_dir}")
+    
+    typer.echo(f"📥 Ingesting PDFs from: {path}")
+    typer.echo(f"🔍 OCR mode: {ocr_mode.value}")
+    
+    # Process based on whether path is a file or directory
+    pdf_files = []
+    if path.is_file():
+        if path.suffix.lower() == '.pdf':
+            pdf_files = [path]
+        else:
+            typer.echo(f"❌ Error: {path} is not a PDF file", err=True)
+            raise typer.Exit(code=1)
+    elif path.is_dir():
+        pattern = "**/*.pdf" if recursive else "*.pdf"
+        pdf_files = list(path.glob(pattern))
+        if not pdf_files:
+            typer.echo(f"⚠️  No PDF files found in {path}", err=True)
+            raise typer.Exit(code=1)
+    else:
+        typer.echo(f"❌ Error: {path} does not exist", err=True)
+        raise typer.Exit(code=1)
+    
+    typer.echo(f"📄 Found {len(pdf_files)} PDF file(s) to process")
+    
+    # Process each PDF with OCR
+    try:
+        processor = PDFOCRProcessor(ocr_mode=ocr_mode)
+        
+        for pdf_file in pdf_files:
+            typer.echo(f"\n📖 Processing: {pdf_file.name}")
+            try:
+                pages = processor.process_pdf(pdf_file)
+                
+                # Display summary
+                ocr_count = sum(1 for p in pages if p.ocr_applied)
+                total_chars = sum(len(p.text) for p in pages)
+                
+                typer.echo(f"  ✅ Processed {len(pages)} page(s)")
+                if ocr_count > 0:
+                    typer.echo(f"  🔍 OCR applied to {ocr_count} page(s)")
+                typer.echo(f"  📝 Extracted {total_chars} characters")
+                
+                # Log page details
+                for page in pages:
+                    logger.info(
+                        f"Page {page.page_number}: "
+                        f"chars={len(page.text)}, "
+                        f"blocks={len(page.blocks)}, "
+                        f"source={page.source}, "
+                        f"ocr={page.ocr_applied}"
+                    )
+                
+            except Exception as e:
+                logger.error(f"Error processing {pdf_file}: {e}")
+                typer.echo(f"  ❌ Error: {e}", err=True)
+                continue
+        
+        typer.echo(f"\n✅ Ingestion complete")
+        
+    except RuntimeError as e:
+        logger.error(f"Failed to initialize OCR processor: {e}")
+        typer.echo(f"❌ Error: {e}", err=True)
+        raise typer.Exit(code=1)
 
 
 @app.command()
 def search(
     query: str = typer.Argument(..., help="Search query"),
     limit: int = typer.Option(10, "--limit", "-l", help="Maximum number of results to return"),
-    format: str = typer.Option("text", "--format", "-f", help="Output format (text, json)"),
+    format: str = typer.Option("text", "--format", "-f", help="Output format (text, json, markdown)"),
+    data_dir: Optional[Path] = typer.Option(None, "--data-dir", "-d", help="Directory containing documents to search"),
+    keyword_weight: float = typer.Option(0.6, "--keyword-weight", help="Weight for keyword scoring (0-1)"),
+    vector_weight: float = typer.Option(0.4, "--vector-weight", help="Weight for vector scoring (0-1)"),
+    seed: int = typer.Option(42, "--seed", help="Random seed for deterministic results"),
 ) -> None:
     """
     Search through ingested PDF documents.
     
-    This command searches the indexed content and returns relevant results.
+    This command searches the indexed content and returns relevant results
+    using hybrid keyword + vector ranking.
     """
     settings = get_settings()
     logger.info(f"Searching for: {query}")
     logger.info(f"Limit: {limit}, Format: {format}")
     
+    # Determine data directory
+    search_dir = data_dir if data_dir else settings.data_dir
+    
+    # Initialize search engine
+    engine = SearchEngine(seed=seed)
+    
+    # Index documents from data directory
+    if search_dir.exists():
+        typer.echo(f"📂 Indexing documents from: {search_dir}")
+        engine.index_directory(search_dir, pattern="*.txt")
+        
+        if not engine.chunks:
+            typer.echo("⚠️  No documents found to search. Please ingest documents first.")
+            return
+    else:
+        typer.echo(f"⚠️  Data directory not found: {search_dir}")
+        typer.echo("Please ingest documents first or specify a valid --data-dir")
+        return
+    
+    # Perform search
     typer.echo(f"🔍 Searching for: {query}")
-    typer.echo(f"📊 Showing top {limit} results")
-    typer.echo("✅ Search complete (stub implementation)")
+    results = engine.search(
+        query=query,
+        top_k=limit,
+        keyword_weight=keyword_weight,
+        vector_weight=vector_weight
+    )
+    
+    if not results:
+        typer.echo("No results found.")
+        return
+    
+    # Output results
+    if format == "json":
+        output = engine.export_results_json(results)
+        typer.echo(output)
+    elif format == "markdown":
+        output = engine.export_results_markdown(results, query)
+        typer.echo(output)
+    else:  # text format
+        typer.echo(f"\n📊 Found {len(results)} results:\n")
+        for i, result in enumerate(results, 1):
+            typer.echo(f"[{i}] {Path(result.document).name} (Page {result.page})")
+            typer.echo(f"    Score: {result.score:.4f} (keyword: {result.keyword_score:.4f}, vector: {result.vector_score:.4f})")
+            typer.echo(f"    Snippet: {result.snippet}")
+            typer.echo()
 
 
 @app.command()
@@ -228,6 +350,155 @@ def export(
     if filter:
         typer.echo(f"🔍 Filter: {filter}")
     typer.echo("✅ Export complete (stub implementation)")
+
+
+@app.command()
+def rebuild_index(
+    jsonl_path: Path = typer.Argument(..., help="Path to extracted JSONL file"),
+    index_path: Optional[Path] = typer.Option(None, "--index-path", "-i", help="Path to save index"),
+    model: str = typer.Option("all-MiniLM-L6-v2", "--model", "-m", help="Sentence transformer model name"),
+) -> None:
+    """
+    Rebuild the vector index from extracted JSONL data.
+    
+    This command reads text data from a JSONL file, chunks it, generates embeddings,
+    and builds a FAISS index for semantic search.
+    """
+    settings = get_settings()
+    
+    if not jsonl_path.exists():
+        typer.echo(f"❌ Error: JSONL file not found: {jsonl_path}", err=True)
+        raise typer.Exit(1)
+    
+    # Determine index path
+    if index_path is None:
+        index_path = settings.data_dir / "index"
+    
+    typer.echo(f"🔨 Rebuilding index from: {jsonl_path}")
+    logger.info(f"Reading JSONL file: {jsonl_path}")
+    
+    try:
+        # Read JSONL file
+        documents = []
+        with open(jsonl_path, "r") as f:
+            for line in f:
+                if line.strip():
+                    documents.append(json.loads(line))
+        
+        typer.echo(f"📄 Loaded {len(documents)} documents")
+        logger.info(f"Loaded {len(documents)} documents from JSONL")
+        
+        # Initialize chunker
+        typer.echo("✂️  Chunking documents...")
+        chunker = SemanticChunker(
+            min_chunk_size=800,
+            max_chunk_size=1200,
+            overlap_size=120,
+        )
+        
+        # Chunk all documents
+        all_chunks = []
+        for doc in documents:
+            text = doc.get("text", "")
+            if not text:
+                continue
+            
+            source = SourceReference(
+                file=doc.get("file", "unknown"),
+                page=doc.get("page"),
+                section=doc.get("section"),
+            )
+            
+            chunks = chunker.chunk_text(text, source, metadata=doc.get("metadata", {}))
+            all_chunks.extend(chunks)
+        
+        typer.echo(f"✅ Created {len(all_chunks)} chunks")
+        logger.info(f"Created {len(all_chunks)} chunks")
+        
+        # Initialize embeddings provider
+        typer.echo(f"🔧 Loading embeddings model: {model}")
+        embeddings = get_embeddings_provider(
+            provider="sentence-transformer",
+            model_name=model,
+            cache_dir=settings.cache_dir,
+        )
+        
+        # Initialize index manager
+        typer.echo("🗄️  Building FAISS index...")
+        index_manager = FAISSIndexManager(
+            embeddings_provider=embeddings,
+            index_path=index_path,
+        )
+        
+        # Rebuild index
+        index_manager.rebuild(all_chunks)
+        
+        # Save index
+        index_manager.save()
+        typer.echo(f"💾 Index saved to: {index_path}")
+        
+        # Display stats
+        stats = index_manager.get_stats()
+        typer.echo("\n📊 Index Statistics:")
+        typer.echo(f"  Total vectors: {stats['total_vectors']}")
+        typer.echo(f"  Dimension: {stats['dimension']}")
+        typer.echo(f"  Metadata count: {stats['metadata_count']}")
+        
+        typer.echo("\n✅ Index rebuild complete!")
+        
+    except Exception as e:
+        typer.echo(f"❌ Error rebuilding index: {str(e)}", err=True)
+        logger.error(f"Error rebuilding index: {str(e)}", exc_info=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def index_info(
+    index_path: Optional[Path] = typer.Option(None, "--index-path", "-i", help="Path to index"),
+) -> None:
+    """
+    Display information about the vector index.
+    """
+    settings = get_settings()
+    
+    # Determine index path
+    if index_path is None:
+        index_path = settings.data_dir / "index"
+    
+    index_file = index_path.with_suffix(".faiss")
+    metadata_file = index_path.with_suffix(".meta.json")
+    
+    if not index_file.exists():
+        typer.echo(f"❌ Index not found: {index_file}", err=True)
+        raise typer.Exit(1)
+    
+    typer.echo(f"📊 Index Information: {index_path}")
+    
+    try:
+        # Load and display index stats
+        embeddings = get_embeddings_provider(
+            provider="sentence-transformer",
+            model_name="all-MiniLM-L6-v2",
+        )
+        index_manager = FAISSIndexManager(
+            embeddings_provider=embeddings,
+            index_path=index_path,
+        )
+        index_manager.load()
+        
+        stats = index_manager.get_stats()
+        typer.echo(f"\n  Total vectors: {stats['total_vectors']}")
+        typer.echo(f"  Dimension: {stats['dimension']}")
+        typer.echo(f"  Metadata entries: {stats['metadata_count']}")
+        typer.echo(f"\n  Index file: {index_file}")
+        typer.echo(f"  Index size: {index_file.stat().st_size / 1024:.2f} KB")
+        typer.echo(f"  Metadata file: {metadata_file}")
+        typer.echo(f"  Metadata size: {metadata_file.stat().st_size / 1024:.2f} KB")
+        
+    except Exception as e:
+        typer.echo(f"❌ Error loading index: {str(e)}", err=True)
+        logger.error(f"Error loading index: {str(e)}", exc_info=True)
+        raise typer.Exit(1)
 
 
 @app.callback()

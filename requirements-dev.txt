@@ -1,0 +1,20 @@
+# Development dependencies
+# Includes all runtime dependencies plus development tools
+
+-r requirements.txt
+
+# Testing
+pytest==7.4.4
+pytest-cov==4.1.0
+
+# Code formatting
+black==23.12.1
+
+# Linting
+ruff==0.1.11
+
+# Type checking
+mypy==1.8.0
+
+# Test PDF generation
+reportlab==4.0.9

@@ -1,11 +1,15 @@
 """CLI interface for PDF Context Narrator using Typer."""
 
 import typer
+import json
 from typing import Optional
 from pathlib import Path
 
 from pdf_context_narrator.config import get_settings
 from pdf_context_narrator.logger import get_logger
+from pdf_context_narrator.chunking import SemanticChunker, SourceReference
+from pdf_context_narrator.embeddings import get_embeddings_provider
+from pdf_context_narrator.index import FAISSIndexManager
 
 app = typer.Typer(
     name="pdf-context-narrator",
@@ -123,6 +127,152 @@ def export(
     if filter:
         typer.echo(f"🔍 Filter: {filter}")
     typer.echo("✅ Export complete (stub implementation)")
+
+
+@app.command()
+def rebuild_index(
+    jsonl_path: Path = typer.Argument(..., help="Path to extracted JSONL file"),
+    index_path: Optional[Path] = typer.Option(None, "--index-path", "-i", help="Path to save index"),
+    model: str = typer.Option("all-MiniLM-L6-v2", "--model", "-m", help="Sentence transformer model name"),
+) -> None:
+    """
+    Rebuild the vector index from extracted JSONL data.
+    
+    This command reads text data from a JSONL file, chunks it, generates embeddings,
+    and builds a FAISS index for semantic search.
+    """
+    settings = get_settings()
+    
+    if not jsonl_path.exists():
+        typer.echo(f"❌ Error: JSONL file not found: {jsonl_path}", err=True)
+        raise typer.Exit(1)
+    
+    # Determine index path
+    if index_path is None:
+        index_path = settings.data_dir / "index"
+    
+    typer.echo(f"🔨 Rebuilding index from: {jsonl_path}")
+    logger.info(f"Reading JSONL file: {jsonl_path}")
+    
+    try:
+        # Read JSONL file
+        documents = []
+        with open(jsonl_path, "r") as f:
+            for line in f:
+                if line.strip():
+                    documents.append(json.loads(line))
+        
+        typer.echo(f"📄 Loaded {len(documents)} documents")
+        logger.info(f"Loaded {len(documents)} documents from JSONL")
+        
+        # Initialize chunker
+        typer.echo("✂️  Chunking documents...")
+        chunker = SemanticChunker(
+            min_chunk_size=800,
+            max_chunk_size=1200,
+            overlap_size=120,
+        )
+        
+        # Chunk all documents
+        all_chunks = []
+        for doc in documents:
+            text = doc.get("text", "")
+            if not text:
+                continue
+            
+            source = SourceReference(
+                file=doc.get("file", "unknown"),
+                page=doc.get("page"),
+                section=doc.get("section"),
+            )
+            
+            chunks = chunker.chunk_text(text, source, metadata=doc.get("metadata", {}))
+            all_chunks.extend(chunks)
+        
+        typer.echo(f"✅ Created {len(all_chunks)} chunks")
+        logger.info(f"Created {len(all_chunks)} chunks")
+        
+        # Initialize embeddings provider
+        typer.echo(f"🔧 Loading embeddings model: {model}")
+        embeddings = get_embeddings_provider(
+            provider="sentence-transformer",
+            model_name=model,
+            cache_dir=settings.cache_dir,
+        )
+        
+        # Initialize index manager
+        typer.echo("🗄️  Building FAISS index...")
+        index_manager = FAISSIndexManager(
+            embeddings_provider=embeddings,
+            index_path=index_path,
+        )
+        
+        # Rebuild index
+        index_manager.rebuild(all_chunks)
+        
+        # Save index
+        index_manager.save()
+        typer.echo(f"💾 Index saved to: {index_path}")
+        
+        # Display stats
+        stats = index_manager.get_stats()
+        typer.echo("\n📊 Index Statistics:")
+        typer.echo(f"  Total vectors: {stats['total_vectors']}")
+        typer.echo(f"  Dimension: {stats['dimension']}")
+        typer.echo(f"  Metadata count: {stats['metadata_count']}")
+        
+        typer.echo("\n✅ Index rebuild complete!")
+        
+    except Exception as e:
+        typer.echo(f"❌ Error rebuilding index: {str(e)}", err=True)
+        logger.error(f"Error rebuilding index: {str(e)}", exc_info=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def index_info(
+    index_path: Optional[Path] = typer.Option(None, "--index-path", "-i", help="Path to index"),
+) -> None:
+    """
+    Display information about the vector index.
+    """
+    settings = get_settings()
+    
+    # Determine index path
+    if index_path is None:
+        index_path = settings.data_dir / "index"
+    
+    index_file = index_path.with_suffix(".faiss")
+    metadata_file = index_path.with_suffix(".meta.json")
+    
+    if not index_file.exists():
+        typer.echo(f"❌ Index not found: {index_file}", err=True)
+        raise typer.Exit(1)
+    
+    typer.echo(f"📊 Index Information: {index_path}")
+    
+    try:
+        # Load and display index stats
+        embeddings = get_embeddings_provider()
+        index_manager = FAISSIndexManager(
+            embeddings_provider=embeddings,
+            index_path=index_path,
+        )
+        index_manager.load()
+        
+        stats = index_manager.get_stats()
+        typer.echo(f"\n  Total vectors: {stats['total_vectors']}")
+        typer.echo(f"  Dimension: {stats['dimension']}")
+        typer.echo(f"  Metadata entries: {stats['metadata_count']}")
+        typer.echo(f"\n  Index file: {index_file}")
+        typer.echo(f"  Index size: {index_file.stat().st_size / 1024:.2f} KB")
+        typer.echo(f"  Metadata file: {metadata_file}")
+        typer.echo(f"  Metadata size: {metadata_file.stat().st_size / 1024:.2f} KB")
+        
+    except Exception as e:
+        typer.echo(f"❌ Error loading index: {str(e)}", err=True)
+        logger.error(f"Error loading index: {str(e)}", exc_info=True)
+        raise typer.Exit(1)
 
 
 @app.callback()

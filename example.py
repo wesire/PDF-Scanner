@@ -8,10 +8,12 @@ from PDF files and save to JSONL format.
 import sys
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
-
-from pdf_text_extractor import PDFTextExtractor
+try:
+    from src.pdf_text_extractor import PDFTextExtractor
+except ImportError:
+    # Fallback for development without installation
+    sys.path.insert(0, str(Path(__file__).parent))
+    from src.pdf_text_extractor import PDFTextExtractor
 
 
 def main():

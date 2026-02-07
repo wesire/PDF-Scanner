@@ -155,8 +155,8 @@ class PDFTextExtractor:
                     if reader.is_encrypted:
                         try:
                             reader.decrypt('')
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"Failed to decrypt {pdf_path}: {e}")
                     return len(reader.pages)
             except Exception as e:
                 logger.warning(f"pypdf page count failed for {pdf_path}: {e}")

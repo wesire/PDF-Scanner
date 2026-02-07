@@ -30,6 +30,11 @@ cd PDF-Scanner
 pip install -r requirements.txt
 ```
 
+Or install as a package (recommended for development):
+```bash
+pip install -e .
+```
+
 ## Usage
 
 ### Python API

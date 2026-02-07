@@ -2,15 +2,18 @@
 Unit tests for PDF text extractor with pypdf and pdfplumber fallback.
 """
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch, mock_open
 
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
-
-from pdf_text_extractor import PDFTextExtractor
+try:
+    from src.pdf_text_extractor import PDFTextExtractor
+except ImportError:
+    # Fallback for running tests without installation
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from src.pdf_text_extractor import PDFTextExtractor
 
 
 class TestPDFTextExtractor(unittest.TestCase):
@@ -26,7 +29,7 @@ class TestPDFTextExtractor(unittest.TestCase):
         self.assertTrue(Path(self.temp_dir).exists())
         self.assertEqual(self.extractor.output_dir, Path(self.temp_dir))
 
-    @patch('pdf_text_extractor.pypdf')
+    @patch('src.pdf_text_extractor.pypdf')
     def test_extract_text_pypdf_success(self, mock_pypdf):
         """Test successful text extraction with pypdf."""
         # Mock PDF reader
@@ -47,7 +50,7 @@ class TestPDFTextExtractor(unittest.TestCase):
         self.assertEqual(result, "Sample text from pypdf")
         Path(tmp_path).unlink()
 
-    @patch('pdf_text_extractor.pypdf')
+    @patch('src.pdf_text_extractor.pypdf')
     def test_extract_text_pypdf_encrypted(self, mock_pypdf):
         """Test pypdf handling of encrypted PDFs."""
         mock_reader = MagicMock()
@@ -61,7 +64,7 @@ class TestPDFTextExtractor(unittest.TestCase):
         self.assertIsNone(result)
         Path(tmp_path).unlink()
 
-    @patch('pdf_text_extractor.pypdf')
+    @patch('src.pdf_text_extractor.pypdf')
     def test_extract_text_pypdf_exception(self, mock_pypdf):
         """Test pypdf handling of exceptions."""
         mock_pypdf.PdfReader.side_effect = Exception("Corrupt PDF")
@@ -73,7 +76,7 @@ class TestPDFTextExtractor(unittest.TestCase):
         self.assertIsNone(result)
         Path(tmp_path).unlink()
 
-    @patch('pdf_text_extractor.pdfplumber')
+    @patch('src.pdf_text_extractor.pdfplumber')
     def test_extract_text_pdfplumber_success(self, mock_pdfplumber):
         """Test successful text extraction with pdfplumber."""
         mock_page = MagicMock()
@@ -93,7 +96,7 @@ class TestPDFTextExtractor(unittest.TestCase):
         self.assertEqual(result, "Sample text from pdfplumber")
         Path(tmp_path).unlink()
 
-    @patch('pdf_text_extractor.pdfplumber')
+    @patch('src.pdf_text_extractor.pdfplumber')
     def test_extract_text_pdfplumber_exception(self, mock_pdfplumber):
         """Test pdfplumber handling of exceptions."""
         mock_pdfplumber.open.side_effect = Exception("Corrupt PDF")
@@ -105,8 +108,8 @@ class TestPDFTextExtractor(unittest.TestCase):
         self.assertIsNone(result)
         Path(tmp_path).unlink()
 
-    @patch('pdf_text_extractor.pdfplumber')
-    @patch('pdf_text_extractor.pypdf')
+    @patch('src.pdf_text_extractor.pdfplumber')
+    @patch('src.pdf_text_extractor.pypdf')
     def test_extract_page_pypdf_success(self, mock_pypdf, mock_pdfplumber):
         """Test extract_page using pypdf successfully."""
         expected_text = "Test page text"
@@ -131,8 +134,8 @@ class TestPDFTextExtractor(unittest.TestCase):
         
         Path(tmp_path).unlink()
 
-    @patch('pdf_text_extractor.pdfplumber')
-    @patch('pdf_text_extractor.pypdf')
+    @patch('src.pdf_text_extractor.pdfplumber')
+    @patch('src.pdf_text_extractor.pypdf')
     def test_extract_page_fallback_to_pdfplumber(self, mock_pypdf, mock_pdfplumber):
         """Test extract_page falling back to pdfplumber when pypdf fails."""
         expected_text = "Fallback text"
@@ -159,8 +162,8 @@ class TestPDFTextExtractor(unittest.TestCase):
         
         Path(tmp_path).unlink()
 
-    @patch('pdf_text_extractor.pdfplumber')
-    @patch('pdf_text_extractor.pypdf')
+    @patch('src.pdf_text_extractor.pdfplumber')
+    @patch('src.pdf_text_extractor.pypdf')
     def test_extract_page_both_fail(self, mock_pypdf, mock_pdfplumber):
         """Test extract_page when both extractors fail."""
         mock_pypdf.PdfReader.side_effect = Exception("pypdf error")
@@ -173,7 +176,7 @@ class TestPDFTextExtractor(unittest.TestCase):
         self.assertIsNone(result)
         Path(tmp_path).unlink()
 
-    @patch('pdf_text_extractor.pypdf')
+    @patch('src.pdf_text_extractor.pypdf')
     def test_get_page_count_success(self, mock_pypdf):
         """Test getting page count from PDF."""
         mock_reader = MagicMock()
@@ -188,8 +191,8 @@ class TestPDFTextExtractor(unittest.TestCase):
         self.assertEqual(result, 3)
         Path(tmp_path).unlink()
 
-    @patch('pdf_text_extractor.pdfplumber')
-    @patch('pdf_text_extractor.pypdf')
+    @patch('src.pdf_text_extractor.pdfplumber')
+    @patch('src.pdf_text_extractor.pypdf')
     def test_get_page_count_fallback(self, mock_pypdf, mock_pdfplumber):
         """Test getting page count with fallback to pdfplumber."""
         mock_pypdf.PdfReader.side_effect = Exception("pypdf error")
@@ -301,7 +304,7 @@ class TestPDFTextExtractor(unittest.TestCase):
         result = self.extractor.extract_pdf('/nonexistent/file.pdf')
         self.assertEqual(result, [])
 
-    @patch('pdf_text_extractor.pypdf', None)
+    @patch('src.pdf_text_extractor.pypdf', None)
     def test_extract_text_pypdf_not_installed(self):
         """Test behavior when pypdf is not installed."""
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
@@ -311,7 +314,7 @@ class TestPDFTextExtractor(unittest.TestCase):
         self.assertIsNone(result)
         Path(tmp_path).unlink()
 
-    @patch('pdf_text_extractor.pdfplumber', None)
+    @patch('src.pdf_text_extractor.pdfplumber', None)
     def test_extract_text_pdfplumber_not_installed(self):
         """Test behavior when pdfplumber is not installed."""
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:

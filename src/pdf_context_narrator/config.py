@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     # Processing settings
     max_workers: int = 4
     batch_size: int = 10
+    memory_limit_mb: Optional[int] = None
+    checkpoint_dir: Path = Path("checkpoints")
     
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -49,6 +51,7 @@ class Settings(BaseSettings):
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
 
 @lru_cache()

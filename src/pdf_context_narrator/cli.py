@@ -6,6 +6,7 @@ from pathlib import Path
 
 from pdf_context_narrator.config import get_settings
 from pdf_context_narrator.logger import get_logger
+from pdf_context_narrator.processor import process_pdf_file
 
 app = typer.Typer(
     name="pdf-context-narrator",
@@ -21,19 +22,123 @@ def ingest(
     path: Path = typer.Argument(..., help="Path to PDF file or directory to ingest"),
     recursive: bool = typer.Option(False, "--recursive", "-r", help="Recursively ingest PDFs from subdirectories"),
     force: bool = typer.Option(False, "--force", "-f", help="Force re-ingestion of already processed files"),
+    workers: Optional[int] = typer.Option(None, "--workers", "-w", help="Number of parallel workers for multiprocessing"),
+    batch_size: Optional[int] = typer.Option(None, "--batch-size", "-b", help="Number of pages between checkpoints"),
+    memory_limit: Optional[int] = typer.Option(None, "--memory-limit", "-m", help="Memory limit in MB (requires psutil)"),
+    resume: bool = typer.Option(False, "--resume", help="Resume from checkpoint if available"),
+    checkpoint_dir: Optional[Path] = typer.Option(None, "--checkpoint-dir", help="Directory for checkpoint files"),
 ) -> None:
     """
-    Ingest PDF documents into the system.
+    Ingest PDF documents into the system with large-file resilience.
     
-    This command processes PDF files and stores their content for later retrieval.
+    This command processes PDF files with streaming page processing, automatic
+    checkpoints, resumable runs, and optional multiprocessing support.
+    
+    Features:
+    - Streaming page processing for memory efficiency
+    - Automatic checkpoints every N pages (configurable via --batch-size)
+    - Resume capability with --resume flag
+    - Multiprocessing support with --workers flag
+    - Progress bars for visual feedback
+    - Memory limit monitoring with --memory-limit flag
     """
     settings = get_settings()
+    
+    # Use settings defaults if not specified
+    workers_count = workers if workers is not None else settings.max_workers
+    batch_size_val = batch_size if batch_size is not None else settings.batch_size
+    checkpoint_dir_val = checkpoint_dir if checkpoint_dir is not None else settings.checkpoint_dir
+    
     logger.info(f"Ingesting PDFs from: {path}")
-    logger.info(f"Recursive: {recursive}, Force: {force}")
-    logger.info(f"Using data directory: {settings.data_dir}")
+    logger.info(f"Configuration: recursive={recursive}, force={force}, resume={resume}")
+    logger.info(f"Workers: {workers_count}, Batch size: {batch_size_val}")
     
     typer.echo(f"📥 Ingesting PDFs from: {path}")
-    typer.echo("✅ Ingestion complete (stub implementation)")
+    typer.echo(f"⚙️  Workers: {workers_count}, Batch size: {batch_size_val}")
+    
+    if resume:
+        typer.echo(f"🔄 Resume mode enabled, checkpoint dir: {checkpoint_dir_val}")
+    
+    # Process single file or directory
+    if path.is_file():
+        if path.suffix.lower() != ".pdf":
+            typer.echo(f"❌ Error: Not a PDF file: {path}", err=True)
+            raise typer.Exit(1)
+        
+        try:
+            result = process_pdf_file(
+                pdf_path=path,
+                workers=workers_count,
+                batch_size=batch_size_val,
+                memory_limit_mb=memory_limit,
+                checkpoint_dir=checkpoint_dir_val,
+                resume=resume,
+                force=force,
+            )
+            
+            if result["completed"]:
+                typer.echo(
+                    f"✅ Successfully processed {result['processed_pages']}/{result['total_pages']} pages"
+                )
+            else:
+                typer.echo(
+                    f"⚠️  Processing interrupted at page {result['processed_pages']}/{result['total_pages']}"
+                )
+                typer.echo(f"💾 Checkpoint saved. Run with --resume to continue.")
+        except Exception as e:
+            logger.error(f"Error processing {path}: {e}")
+            typer.echo(f"❌ Error: {e}", err=True)
+            raise typer.Exit(1)
+    
+    elif path.is_dir():
+        # Process directory
+        pdf_files = []
+        if recursive:
+            pdf_files = list(path.rglob("*.pdf"))
+        else:
+            pdf_files = list(path.glob("*.pdf"))
+        
+        if not pdf_files:
+            typer.echo(f"⚠️  No PDF files found in {path}")
+            return
+        
+        typer.echo(f"📚 Found {len(pdf_files)} PDF file(s)")
+        
+        success_count = 0
+        error_count = 0
+        interrupted_count = 0
+        
+        for pdf_file in pdf_files:
+            typer.echo(f"\n📄 Processing: {pdf_file.name}")
+            try:
+                result = process_pdf_file(
+                    pdf_path=pdf_file,
+                    workers=workers_count,
+                    batch_size=batch_size_val,
+                    memory_limit_mb=memory_limit,
+                    checkpoint_dir=checkpoint_dir_val,
+                    resume=resume,
+                    force=force,
+                )
+                
+                if result["completed"]:
+                    success_count += 1
+                    typer.echo(f"   ✅ {result['processed_pages']} pages processed")
+                else:
+                    interrupted_count += 1
+                    typer.echo(f"   ⚠️  Interrupted at page {result['processed_pages']}")
+            except Exception as e:
+                error_count += 1
+                logger.error(f"Error processing {pdf_file}: {e}")
+                typer.echo(f"   ❌ Error: {e}")
+        
+        typer.echo(f"\n📊 Summary:")
+        typer.echo(f"   ✅ Successful: {success_count}")
+        typer.echo(f"   ⚠️  Interrupted: {interrupted_count}")
+        typer.echo(f"   ❌ Errors: {error_count}")
+    else:
+        typer.echo(f"❌ Error: Path not found: {path}", err=True)
+        raise typer.Exit(1)
 
 
 @app.command()

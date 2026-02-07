@@ -4,9 +4,9 @@ pydantic==2.5.3
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
 
-# For future PDF processing (not implemented yet)
-# pypdf==3.17.4
-# pdfplumber==0.10.4
+# PDF processing
+pypdf==4.0.1
+tqdm==4.66.1
 
 # For future database support (not implemented yet)
 # sqlalchemy==2.0.25

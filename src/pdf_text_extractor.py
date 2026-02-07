@@ -21,12 +21,19 @@ except ImportError:
 
 # Import refactored extraction functions
 try:
+    # Try importing from same package (when run from within src/)
     from extract import extract_text
     from normalize import normalize_text
     _USE_REFACTORED = True
 except ImportError:
-    # Fallback to legacy implementation if refactored modules not available
-    _USE_REFACTORED = False
+    try:
+        # Try importing with src. prefix (when run from project root)
+        from src.extract import extract_text
+        from src.normalize import normalize_text
+        _USE_REFACTORED = True
+    except ImportError:
+        # Fallback to legacy implementation if refactored modules not available
+        _USE_REFACTORED = False
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

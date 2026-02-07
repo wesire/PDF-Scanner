@@ -138,7 +138,7 @@ class TestExtract(unittest.TestCase):
 
     @patch('src.extract.extract_text_pdfplumber')
     @patch('src.extract.extract_text_pypdf')
-    def test_extract_text_pypdf_success(self, mock_pypdf_extract, mock_pdfplumber_extract):
+    def test_extract_text_uses_pypdf_first(self, mock_pypdf_extract, mock_pdfplumber_extract):
         """Test extract_text using pypdf successfully."""
         mock_pypdf_extract.return_value = "Text from pypdf"
         

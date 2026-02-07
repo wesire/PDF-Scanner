@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pdf_context_narrator.config import get_settings
 from pdf_context_narrator.logger import get_logger
+from pdf_context_narrator.search import SearchEngine
 from pdf_context_narrator.chunking import SemanticChunker, SourceReference
 from pdf_context_narrator.embeddings import get_embeddings_provider
 from pdf_context_narrator.index import FAISSIndexManager
@@ -107,20 +108,68 @@ def ingest(
 def search(
     query: str = typer.Argument(..., help="Search query"),
     limit: int = typer.Option(10, "--limit", "-l", help="Maximum number of results to return"),
-    format: str = typer.Option("text", "--format", "-f", help="Output format (text, json)"),
+    format: str = typer.Option("text", "--format", "-f", help="Output format (text, json, markdown)"),
+    data_dir: Optional[Path] = typer.Option(None, "--data-dir", "-d", help="Directory containing documents to search"),
+    keyword_weight: float = typer.Option(0.6, "--keyword-weight", help="Weight for keyword scoring (0-1)"),
+    vector_weight: float = typer.Option(0.4, "--vector-weight", help="Weight for vector scoring (0-1)"),
+    seed: int = typer.Option(42, "--seed", help="Random seed for deterministic results"),
 ) -> None:
     """
     Search through ingested PDF documents.
     
-    This command searches the indexed content and returns relevant results.
+    This command searches the indexed content and returns relevant results
+    using hybrid keyword + vector ranking.
     """
     settings = get_settings()
     logger.info(f"Searching for: {query}")
     logger.info(f"Limit: {limit}, Format: {format}")
     
+    # Determine data directory
+    search_dir = data_dir if data_dir else settings.data_dir
+    
+    # Initialize search engine
+    engine = SearchEngine(seed=seed)
+    
+    # Index documents from data directory
+    if search_dir.exists():
+        typer.echo(f"📂 Indexing documents from: {search_dir}")
+        engine.index_directory(search_dir, pattern="*.txt")
+        
+        if not engine.chunks:
+            typer.echo("⚠️  No documents found to search. Please ingest documents first.")
+            return
+    else:
+        typer.echo(f"⚠️  Data directory not found: {search_dir}")
+        typer.echo("Please ingest documents first or specify a valid --data-dir")
+        return
+    
+    # Perform search
     typer.echo(f"🔍 Searching for: {query}")
-    typer.echo(f"📊 Showing top {limit} results")
-    typer.echo("✅ Search complete (stub implementation)")
+    results = engine.search(
+        query=query,
+        top_k=limit,
+        keyword_weight=keyword_weight,
+        vector_weight=vector_weight
+    )
+    
+    if not results:
+        typer.echo("No results found.")
+        return
+    
+    # Output results
+    if format == "json":
+        output = engine.export_results_json(results)
+        typer.echo(output)
+    elif format == "markdown":
+        output = engine.export_results_markdown(results, query)
+        typer.echo(output)
+    else:  # text format
+        typer.echo(f"\n📊 Found {len(results)} results:\n")
+        for i, result in enumerate(results, 1):
+            typer.echo(f"[{i}] {Path(result.document).name} (Page {result.page})")
+            typer.echo(f"    Score: {result.score:.4f} (keyword: {result.keyword_score:.4f}, vector: {result.vector_score:.4f})")
+            typer.echo(f"    Snippet: {result.snippet}")
+            typer.echo()
 
 
 @app.command()

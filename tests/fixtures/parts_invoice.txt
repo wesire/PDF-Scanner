@@ -1,0 +1,48 @@
+Invoice for Parts Order
+
+Customer: ABC Manufacturing Inc.
+Order Date: January 15, 2024
+
+Line Items:
+
+Part #K-1234-5 - Hydraulic Pump Assembly
+Quantity: 10 units
+Unit Price: $125.00
+Total: $1,250.00
+Description: High-efﬁciency hydraulic pump with stainless steel housing.
+The manufacturer's warranty covers all defects for 12 months.
+
+Part #K-5678-9 - Pneumatic Valve Controller  
+Quantity: 25 units
+Unit Price: $45.50
+Total: $1,137.50
+Description: Industrial-grade valve controller with automatic failsafe.
+It's designed for high-pressure applications up to 3000 PSI.
+
+Part #K-9012-3 - Flow Sensor Module
+Quantity: 15 units  
+Unit Price: $89.99
+Total: $1,349.85
+Description: Digital ﬂow sensor with real-time monitoring capability.
+Provides accurate measurements within 0.1% tolerance.
+
+Part #K-3456-7 - Sealing Gasket Kit
+Quantity: 50 units
+Unit Price: $12.75
+Total: $637.50
+Description: Complete gasket kit for standard ﬁttings and connections.
+The kit includes O-rings, washers, and sealant compound.
+
+Subtotal: $4,374.85
+Tax (8%): $349.99
+Shipping: $125.00
+
+Total Amount: $4,849.84
+
+Payment Terms: Net 30 days
+Ship To: Customer's main warehouse facility
+
+Notes:
+• All parts are certi ﬁed to industry standards
+• Expedited shipping available upon request
+• Contact support@supplier.com for technical assistance

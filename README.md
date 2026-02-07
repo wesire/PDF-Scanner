@@ -4,11 +4,12 @@ A Python 3.11 CLI tool for ingesting, searching, and analyzing PDF documents.
 
 ## Features
 
-- 📥 **Ingest**: Process and index PDF documents
+- 📥 **Ingest**: Process and index PDF documents with OCR support
 - 🔍 **Search**: Query indexed documents with powerful search
 - 📄 **Summarize**: Generate summaries of PDF content
 - 📅 **Timeline**: Create chronological views of document events
 - 📤 **Export**: Export data in multiple formats (JSON, CSV, Markdown)
+- 🔎 **OCR**: Optical Character Recognition for scanned pages and images
 
 ## Project Structure
 
@@ -20,7 +21,8 @@ pdf_context_narrator/
 │       ├── __main__.py
 │       ├── cli.py          # CLI interface with Typer
 │       ├── config.py       # Configuration management with Pydantic
-│       └── logger.py       # Logging setup
+│       ├── logger.py       # Logging setup
+│       └── ocr.py          # OCR processing for scanned documents
 ├── tests/                   # Test files
 ├── configs/                 # Configuration files
 ├── docs/                    # Documentation
@@ -33,6 +35,10 @@ pdf_context_narrator/
 
 - Python 3.11 or higher
 - pip (Python package manager)
+- Tesseract OCR (for OCR functionality)
+  - Ubuntu/Debian: `sudo apt-get install tesseract-ocr poppler-utils`
+  - macOS: `brew install tesseract poppler`
+  - Windows: Download from [GitHub releases](https://github.com/UB-Mannheim/tesseract/wiki)
 
 ## Installation
 
@@ -53,6 +59,94 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+Or install as a package (recommended for development):
+```bash
+pip install -e .
+```
+
+## Usage
+
+### Python API
+
+```python
+from src.pdf_text_extractor import PDFTextExtractor
+
+# Initialize extractor
+extractor = PDFTextExtractor(output_dir="data/extracted")
+
+# Extract text from a PDF
+output_path = extractor.process_pdf("path/to/your/document.pdf")
+
+# Or extract specific pages
+page_data = extractor.extract_page("path/to/document.pdf", page_num=0)
+```
+
+### Command Line
+
+```bash
+python example.py path/to/your/document.pdf
+```
+
+## Output Format
+
+The extracted text is saved in JSONL (JSON Lines) format, with one JSON object per line:
+
+```json
+{"file": "/path/to/document.pdf", "page": 0, "chars": 1234, "extraction_method": "pypdf", "text": "Extracted text..."}
+{"file": "/path/to/document.pdf", "page": 1, "chars": 987, "extraction_method": "pypdf", "text": "More text..."}
+```
+
+Each line contains:
+- `file`: Absolute path to the source PDF
+- `page`: Page number (0-indexed)
+- `chars`: Number of characters extracted
+- `extraction_method`: Either "pypdf" or "pdfplumber"
+- `text`: The extracted text content
+
+## Testing
+
+Run the test suite:
+
+```bash
+python -m unittest tests.test_pdf_text_extractor -v
+```
+
+## How It Works
+
+1. **Primary Extraction (pypdf)**: The tool first attempts to extract text using `pypdf`, which is fast and handles most PDFs well
+2. **Fallback (pdfplumber)**: If `pypdf` fails (encrypted, corrupt, or no text extracted), it automatically falls back to `pdfplumber`
+3. **Graceful Degradation**: If a page fails to extract with both methods, it logs a warning and continues processing remaining pages
+4. **Metadata Collection**: Each successful extraction includes metadata about the source file, page number, text length, and method used
+
+## Error Handling
+
+The tool handles various PDF issues gracefully:
+
+- **Encrypted PDFs**: Detected and logged, with fallback attempted
+- **Corrupt Pages**: Individual page failures don't stop processing
+- **Missing Dependencies**: Checks for required libraries and provides helpful warnings
+- **File Not Found**: Clear error messages for missing files
+
+## Project Structure
+
+```
+PDF-Scanner/
+├── src/
+│   ├── __init__.py
+│   └── pdf_text_extractor.py    # Main extraction logic
+├── tests/
+│   ├── __init__.py
+│   └── test_pdf_text_extractor.py  # Comprehensive unit tests
+├── data/
+│   └── extracted/                # Output directory for JSONL files
+├── example.py                    # Example usage script
+├── requirements.txt              # Python dependencies
+└── README.md                     # This file
+```
+
+## License
+
+See repository for license information.
 4. Configure environment variables:
 ```bash
 cp .env.example .env
@@ -69,6 +163,9 @@ Key configuration options:
 - `PDF_CN_LOGS_DIR`: Directory for log files (default: `logs`)
 - `PDF_CN_LOG_LEVEL`: Logging level (default: `INFO`)
 - `PDF_CN_MAX_WORKERS`: Number of parallel workers (default: `4`)
+- `PDF_CN_OCR_LOW_TEXT_THRESHOLD`: Minimum characters per page to skip OCR (default: `50.0`)
+- `PDF_CN_OCR_MAX_RETRIES`: Maximum OCR retry attempts (default: `3`)
+- `PDF_CN_OCR_RETRY_DELAY`: Delay between OCR retries in seconds (default: `1.0`)
 
 See `.env.example` for all available options.
 
@@ -92,7 +189,7 @@ python src/pdf_context_narrator/cli.py [COMMAND] [OPTIONS]
 
 #### 1. Ingest PDFs
 
-Process and index PDF documents:
+Process and index PDF documents with OCR support:
 
 ```bash
 # Ingest a single PDF file
@@ -106,6 +203,16 @@ python -m pdf_context_narrator ingest path/to/pdfs/ --recursive
 
 # Force re-ingestion of already processed files
 python -m pdf_context_narrator ingest path/to/pdfs/ --force
+
+# OCR Options
+# --ocr-mode off: No OCR processing (default for text PDFs)
+python -m pdf_context_narrator ingest path/to/document.pdf --ocr-mode off
+
+# --ocr-mode auto: Automatically OCR pages with low text content (recommended)
+python -m pdf_context_narrator ingest path/to/scanned.pdf --ocr-mode auto
+
+# --ocr-mode force: Force OCR on all pages
+python -m pdf_context_narrator ingest path/to/scanned.pdf --ocr-mode force
 ```
 
 #### 2. Search Documents
@@ -215,7 +322,20 @@ python -m pdf_context_narrator summarize ./reports/report1.pdf --output summary1
 python -m pdf_context_narrator summarize ./reports/report2.pdf --output summary2.txt
 ```
 
-### Example 3: Timeline Analysis
+### Example 3: OCR Processing for Scanned Documents
+
+```bash
+# Process scanned documents with automatic OCR
+python -m pdf_context_narrator ingest ./scanned-docs/ --recursive --ocr-mode auto
+
+# Force OCR on all pages (even if text is present)
+python -m pdf_context_narrator ingest ./mixed-docs/ --ocr-mode force
+
+# Process with OCR disabled
+python -m pdf_context_narrator ingest ./text-only-docs/ --ocr-mode off
+```
+
+### Example 4: Timeline Analysis
 
 ```bash
 # Ingest documents with date metadata
@@ -255,11 +375,14 @@ mypy src/
 
 ## Current Status
 
-⚠️ **Note**: This is currently a scaffolding implementation. All commands are stubs and do not perform actual PDF processing. Business logic will be implemented in future releases.
+✅ **OCR Support**: The ingest command now supports OCR for scanned pages and images, with automatic detection of low-text pages.
+
+⚠️ **Note**: Search, summarize, timeline, and export commands are currently stubs. Full business logic for these commands will be implemented in future releases.
 
 ## Roadmap
 
-- [ ] Implement PDF text extraction
+- [x] Implement PDF text extraction
+- [x] Add OCR support for scanned documents
 - [ ] Add vector database for semantic search
 - [ ] Implement summarization using LLMs
 - [ ] Add support for document metadata extraction

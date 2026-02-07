@@ -7,6 +7,7 @@ from pathlib import Path
 from pdf_context_narrator.config import get_settings
 from pdf_context_narrator.logger import get_logger
 from pdf_context_narrator.search import SearchEngine
+from pdf_context_narrator.ocr import OCRMode, PDFOCRProcessor
 
 app = typer.Typer(
     name="pdf-context-narrator",
@@ -22,19 +23,81 @@ def ingest(
     path: Path = typer.Argument(..., help="Path to PDF file or directory to ingest"),
     recursive: bool = typer.Option(False, "--recursive", "-r", help="Recursively ingest PDFs from subdirectories"),
     force: bool = typer.Option(False, "--force", "-f", help="Force re-ingestion of already processed files"),
+    ocr_mode: OCRMode = typer.Option(OCRMode.AUTO, "--ocr-mode", help="OCR processing mode: off (no OCR), auto (OCR low-text pages), force (OCR all pages)"),
 ) -> None:
     """
     Ingest PDF documents into the system.
     
     This command processes PDF files and stores their content for later retrieval.
+    Supports OCR for scanned documents and images.
     """
     settings = get_settings()
     logger.info(f"Ingesting PDFs from: {path}")
-    logger.info(f"Recursive: {recursive}, Force: {force}")
+    logger.info(f"Recursive: {recursive}, Force: {force}, OCR mode: {ocr_mode}")
     logger.info(f"Using data directory: {settings.data_dir}")
     
     typer.echo(f"📥 Ingesting PDFs from: {path}")
-    typer.echo("✅ Ingestion complete (stub implementation)")
+    typer.echo(f"🔍 OCR mode: {ocr_mode.value}")
+    
+    # Process based on whether path is a file or directory
+    pdf_files = []
+    if path.is_file():
+        if path.suffix.lower() == '.pdf':
+            pdf_files = [path]
+        else:
+            typer.echo(f"❌ Error: {path} is not a PDF file", err=True)
+            raise typer.Exit(code=1)
+    elif path.is_dir():
+        pattern = "**/*.pdf" if recursive else "*.pdf"
+        pdf_files = list(path.glob(pattern))
+        if not pdf_files:
+            typer.echo(f"⚠️  No PDF files found in {path}", err=True)
+            raise typer.Exit(code=1)
+    else:
+        typer.echo(f"❌ Error: {path} does not exist", err=True)
+        raise typer.Exit(code=1)
+    
+    typer.echo(f"📄 Found {len(pdf_files)} PDF file(s) to process")
+    
+    # Process each PDF with OCR
+    try:
+        processor = PDFOCRProcessor(ocr_mode=ocr_mode)
+        
+        for pdf_file in pdf_files:
+            typer.echo(f"\n📖 Processing: {pdf_file.name}")
+            try:
+                pages = processor.process_pdf(pdf_file)
+                
+                # Display summary
+                ocr_count = sum(1 for p in pages if p.ocr_applied)
+                total_chars = sum(len(p.text) for p in pages)
+                
+                typer.echo(f"  ✅ Processed {len(pages)} page(s)")
+                if ocr_count > 0:
+                    typer.echo(f"  🔍 OCR applied to {ocr_count} page(s)")
+                typer.echo(f"  📝 Extracted {total_chars} characters")
+                
+                # Log page details
+                for page in pages:
+                    logger.info(
+                        f"Page {page.page_number}: "
+                        f"chars={len(page.text)}, "
+                        f"blocks={len(page.blocks)}, "
+                        f"source={page.source}, "
+                        f"ocr={page.ocr_applied}"
+                    )
+                
+            except Exception as e:
+                logger.error(f"Error processing {pdf_file}: {e}")
+                typer.echo(f"  ❌ Error: {e}", err=True)
+                continue
+        
+        typer.echo(f"\n✅ Ingestion complete")
+        
+    except RuntimeError as e:
+        logger.error(f"Failed to initialize OCR processor: {e}")
+        typer.echo(f"❌ Error: {e}", err=True)
+        raise typer.Exit(code=1)
 
 
 @app.command()

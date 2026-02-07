@@ -1,12 +1,17 @@
+pypdf>=3.0.0
+pdfplumber>=0.10.0
 # Core dependencies
 typer[all]==0.9.0
 pydantic==2.5.3
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
 
-# For future PDF processing (not implemented yet)
-# pypdf==3.17.4
-# pdfplumber==0.10.4
+# PDF processing dependencies
+PyMuPDF==1.23.8
+pdf2image==1.16.3
+pytesseract==0.3.10
+Pillow==10.2.0
+pypdf==3.17.4
 
 # For future database support (not implemented yet)
 # sqlalchemy==2.0.25

@@ -1,0 +1,30 @@
+# Offline Profile
+# Optimized for offline operation without external dependencies
+
+# Application settings
+app_name: pdf-context-narrator
+app_version: 0.1.0
+debug: false
+environment: offline
+
+# Data directories
+data_dir: data
+cache_dir: cache
+logs_dir: logs
+
+# Logging settings (moderate verbosity)
+log_level: INFO
+log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+log_file: logs/app.log
+structured_logging: false
+
+# Database settings (local SQLite)
+database_url: sqlite:///data/pdf_context_narrator.db
+
+# Processing settings (optimized for offline)
+max_workers: 4
+batch_size: 10
+
+# Disable any external API calls
+api_endpoint: null
+api_key: null

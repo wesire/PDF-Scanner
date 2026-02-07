@@ -1,0 +1,26 @@
+# Local Development Profile
+# Optimized for local development with verbose logging and local storage
+
+# Application settings
+app_name: pdf-context-narrator
+app_version: 0.1.0
+debug: true
+environment: local
+
+# Data directories (local paths)
+data_dir: data
+cache_dir: cache
+logs_dir: logs
+
+# Logging settings (verbose for development)
+log_level: DEBUG
+log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+log_file: logs/app.log
+structured_logging: false
+
+# Database settings (local SQLite)
+database_url: sqlite:///data/pdf_context_narrator.db
+
+# Processing settings (fewer workers for local)
+max_workers: 2
+batch_size: 5

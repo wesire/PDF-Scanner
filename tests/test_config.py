@@ -1,7 +1,5 @@
 """Tests for configuration module."""
 
-import pytest
-from pathlib import Path
 
 from pdf_context_narrator.config import Settings, get_settings
 
@@ -31,7 +29,7 @@ def test_create_directories(tmp_path):
         logs_dir=tmp_path / "logs",
     )
     settings.create_directories()
-    
+
     assert settings.data_dir.exists()
     assert settings.cache_dir.exists()
     assert settings.logs_dir.exists()

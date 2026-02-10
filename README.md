@@ -157,6 +157,8 @@ pdf_context_narrator/
 
 ## Installation
 
+### Linux / macOS
+
 1. Clone the repository:
 ```bash
 git clone https://github.com/wesire/PDF-Scanner.git
@@ -166,23 +168,133 @@ cd PDF-Scanner
 2. Create and activate a virtual environment (recommended):
 ```bash
 python3.11 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 ```
 
 3. Install dependencies:
 ```bash
-pip install -r requirements.txt
+pip install --upgrade pip
+pip install -c constraints.txt -r requirements.txt
 pip install -e .
 ```
 
-4. (Optional) Install Streamlit UI:
+4. (Optional) Install development dependencies:
 ```bash
-pip install -r requirements-streamlit.txt
+pip install -c constraints.txt -r requirements-dev.txt
 ```
 
-5. Configure environment variables:
-Or install as a package (recommended for development):
+5. (Optional) Install Streamlit UI:
 ```bash
+pip install -c constraints.txt -r requirements-streamlit.txt
+```
+
+6. Configure environment variables:
+```bash
+cp .env.example .env
+# Edit .env with your preferred settings
+```
+
+### Windows (Git Bash)
+
+**Prerequisites:**
+- Install [Python 3.11+](https://www.python.org/downloads/) (ensure "Add Python to PATH" is checked during installation)
+- Install [Git for Windows](https://git-scm.com/download/win) (includes Git Bash)
+- Install [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) for OCR functionality
+- Install [Poppler](https://github.com/oschwartz10612/poppler-windows/releases/) for pdf2image support
+
+1. Open Git Bash and clone the repository:
+```bash
+git clone https://github.com/wesire/PDF-Scanner.git
+cd PDF-Scanner
+```
+
+2. Create and activate a virtual environment:
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment (Git Bash)
+source venv/Scripts/activate
+```
+
+3. Upgrade pip and install dependencies:
+```bash
+# Upgrade pip
+pip install --upgrade pip
+
+# Install runtime dependencies
+pip install -c constraints.txt -r requirements.txt
+
+# Install the package in editable mode
+pip install -e .
+```
+
+4. (Optional) Install development dependencies:
+```bash
+pip install -c constraints.txt -r requirements-dev.txt
+```
+
+5. (Optional) Install Streamlit UI dependencies:
+```bash
+pip install -c constraints.txt -r requirements-streamlit.txt
+```
+
+6. Configure environment variables:
+```bash
+# Copy example environment file
+cp .env.example .env
+
+# Edit with nano or your preferred editor
+nano .env
+# Or open in notepad:
+# notepad .env
+```
+
+7. Add Tesseract and Poppler to your PATH (if not already done):
+```bash
+# Add to ~/.bashrc or set temporarily in your session
+export PATH="/c/Program Files/Tesseract-OCR:$PATH"
+export PATH="/c/path/to/poppler/bin:$PATH"
+
+# Verify installation
+tesseract --version
+pdfimages --version
+```
+
+**Note:** On Windows, replace forward slashes with backslashes for Windows-style paths when needed, or use forward slashes in Git Bash which will auto-convert.
+
+### Alternative: Windows PowerShell / Command Prompt
+
+If you prefer PowerShell or Command Prompt instead of Git Bash:
+
+```powershell
+# PowerShell
+git clone https://github.com/wesire/PDF-Scanner.git
+cd PDF-Scanner
+
+# Create and activate virtual environment
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+
+# Install dependencies
+pip install --upgrade pip
+pip install -c constraints.txt -r requirements.txt
+pip install -e .
+```
+
+Or Command Prompt:
+```cmd
+REM Command Prompt
+git clone https://github.com/wesire/PDF-Scanner.git
+cd PDF-Scanner
+
+REM Create and activate virtual environment
+python -m venv venv
+venv\Scripts\activate.bat
+
+REM Install dependencies
+pip install --upgrade pip
+pip install -c constraints.txt -r requirements.txt
 pip install -e .
 ```
 
@@ -564,6 +676,85 @@ The web interface provides:
 Access the UI at `http://localhost:8501`
 
 See [streamlit_app/README.md](streamlit_app/README.md) for more details.
+
+### Windows Git Bash Usage Notes
+
+When using Windows Git Bash, the commands work the same as on Linux/macOS:
+
+#### Running CLI Commands in Git Bash
+
+```bash
+# Activate virtual environment first
+source venv/Scripts/activate
+
+# Run CLI commands (same as Linux/macOS)
+python -m pdf_context_narrator ingest path/to/document.pdf
+python -m pdf_context_narrator search "your query"
+python -m pdf_context_narrator --help
+```
+
+**Path Handling:**
+- Git Bash handles paths automatically - use forward slashes: `path/to/file.pdf`
+- Windows-style paths with backslashes also work: `C:\Users\username\documents\file.pdf`
+- For paths with spaces, use quotes: `"path/to/my documents/file.pdf"`
+
+**Examples:**
+```bash
+# Process PDFs from Windows Documents folder
+python -m pdf_context_narrator ingest "C:/Users/username/Documents/PDFs/" --recursive
+
+# With Windows-style path (backslashes also work)
+python -m pdf_context_narrator ingest "C:\\Users\\username\\Documents\\PDFs\\" --recursive
+
+# Relative paths work too
+python -m pdf_context_narrator ingest ./data/pdfs/
+```
+
+#### Running Streamlit UI in Git Bash
+
+```bash
+# Activate virtual environment first
+source venv/Scripts/activate
+
+# Start Streamlit server
+streamlit run streamlit_app/app.py
+```
+
+The UI will automatically open in your default browser at `http://localhost:8501`
+
+To stop the Streamlit server, press `Ctrl+C` in the Git Bash terminal.
+
+**Troubleshooting on Windows:**
+- If Python is not found, ensure Python is in your PATH: `which python`
+- If you get "command not found", try `python.exe` instead of `python`
+- For firewall warnings, allow Python through Windows Firewall when prompted
+- If Streamlit doesn't open automatically, manually navigate to `http://localhost:8501`
+
+#### Alternative: PowerShell / Command Prompt
+
+If you prefer PowerShell:
+```powershell
+# Activate virtual environment
+.\venv\Scripts\Activate.ps1
+
+# Run CLI
+python -m pdf_context_narrator ingest path\to\document.pdf
+
+# Run Streamlit
+streamlit run streamlit_app\app.py
+```
+
+Or Command Prompt:
+```cmd
+REM Activate virtual environment
+venv\Scripts\activate.bat
+
+REM Run CLI
+python -m pdf_context_narrator ingest path\to\document.pdf
+
+REM Run Streamlit
+streamlit run streamlit_app\app.py
+```
 
 ## Examples
 

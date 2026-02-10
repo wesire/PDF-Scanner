@@ -1,38 +1,29 @@
-pdfplumber>=0.10.0
-# Core dependencies
-typer[all]==0.9.0
+# Core dependencies - Python 3.11+
+# All packages have Python 3.13 (cp313) compatible wheels
+
+# CLI framework
+typer[all]==0.9.0  # Pure Python, works with all Python 3 versions
+
+# Configuration and validation
 pydantic==2.5.3
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
-pyyaml==6.0.1
+pyyaml==6.0.2  # Updated from 6.0.1 for cp313 wheels
 
 # PDF processing
+PyMuPDF==1.24.14  # Uses cp39-abi3, compatible with Python 3.9-3.13
 pypdf==4.0.1
+pdf2image==1.16.3
+pytesseract==0.3.10
+pdfplumber>=0.10.0
+
+# Image processing
+Pillow==10.4.0  # Has native cp313 wheels
+
+# Progress bars
 tqdm==4.66.1
-# Embeddings and vector search
+
+# Embeddings and vector search (optional features)
 sentence-transformers>=2.2.2
 faiss-cpu>=1.8.0
 numpy>=1.24.3
-
-# For future PDF processing (not implemented yet)
-# pypdf==3.17.4
-# pdfplumber==0.10.4
-# PDF processing dependencies
-PyMuPDF==1.23.8
-pdf2image==1.16.3
-pytesseract==0.3.10
-Pillow==10.2.0
-
-# For future database support (not implemented yet)
-# sqlalchemy==2.0.25
-
-# For future API integration (not implemented yet)
-# httpx==0.26.0
-# aiohttp==3.9.1
-
-# Development dependencies (optional)
-pytest==7.4.4
-pytest-cov==4.1.0
-black==23.12.1
-ruff==0.1.11
-mypy==1.8.0

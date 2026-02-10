@@ -1,4 +1,7 @@
 # Streamlit App Requirements
 # Optional dependencies for the Streamlit web interface
+# Requires Python 3.11+
+
+-r requirements.txt
 
 streamlit==1.31.0
